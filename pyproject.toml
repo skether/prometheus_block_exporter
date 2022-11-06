@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "prometheus_block_exporter"
+version = "0.1.0"
+description = "A tool for exporting Prometheus TSDB Blocks."
+authors = ["Lajos Harangi <lajos@harangi.dev>"]
+license = "MIT License"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+python-ulid = "^1.1.0"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^3.9.2"
+black = "^22.10.0"
+flake8-import-order = "^0.18.1"
+pep8-naming = "^0.13.2"
+flakehell = "^0.9.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 300
+
+[tool.flakehell]
+max_line_length = 300
+exclude = ["__pycache__", ".venv", "docs"]
+# E203: Whitespace before ':'
+ignore = "E203"
+extended_default_ignore=[]
+
+[tool.flakehell.plugins]
+"*" = ["+*"]
