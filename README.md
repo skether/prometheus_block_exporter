@@ -1,2 +1,2 @@
-# PrometheusBlockArchiver
-A tool for achiving Prometheus TSDB Blocks.
+# Prometheus Block Exporter
+A tool for exporting Prometheus TSDB Blocks.
