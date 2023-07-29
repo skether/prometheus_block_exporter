@@ -1,14 +1,17 @@
 import json
+import logging
 import re
 import shutil
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-from IPython import embed
 
 from ulid import ULID
 
 from .block_copier import BlockCopier
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Block():
@@ -50,10 +53,12 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     status_file_path = export_data_dir.joinpath("block.exporter.json")
     status = {}
     if status_file_path.exists():
+        LOGGER.info("Loading status file!")
         with open(status_file_path, 'r') as f:
             status = json.load(f)
 
     # Check if the export data directories content is consistent with the status file.
+    LOGGER.info("Running consistency checks.")
     refresh_exported_blocks = False
     for key, value in list(status.items()):
         if key in exported_blocks:
@@ -65,26 +70,26 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
                 if key in prometheus_blocks:
                     shutil.rmtree(export_data_dir.joinpath(key), ignore_errors=True)
                     refresh_exported_blocks = True
-                    print(f"Block({key}) was partially exported. Removing to force retry!")
+                    LOGGER.warning(f"Block({key}) was partially exported. Removing to force retry!")
                 else:
-                    print(f"Block({key}) was partially exported and is no longer available to retry.")
+                    LOGGER.warning(f"Block({key}) was partially exported and is no longer available to retry.")
         else:
             if value.get('successful', False):
                 # Block was exported successfully in the past, but since has been removed.
-                print(f"Block({key}) was exported successfully but it is now missing.")
+                LOGGER.info(f"Block({key}) was exported successfully but it is now missing.")
             else:
                 # Block was not exported successfully, but is in the status file. This should not occour under normal circumstances.
+                LOGGER.warning(f"Missing Block({key}) was not exported successfully in the past. Cleaning from the status file.")
                 del status[key]
-                print(f"Missing Block({key}) was not exported successfully in the past. Cleaning from the status file.")
     for block in exported_blocks:
         if str(block.ulid) not in status:
             # Block was exported, but there's no record of it in the status file. Reexport if possible.
             if block.ulid in prometheus_blocks:
                 shutil.rmtree(export_data_dir.joinpath(str(block.ulid)), ignore_errors=True)
                 refresh_exported_blocks = True
-                print(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. Will try to reexport.")
+                LOGGER.info(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. Will try to reexport.")
             else:
-                print(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. It is no longer available, won't try to reexport.")
+                LOGGER.info(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. It is no longer available, won't try to reexport.")
     if refresh_exported_blocks:
         exported_blocks = list(iterate_blocks(export_data_dir))
 
@@ -92,24 +97,25 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     block_copier.hash_dictionary = status
 
     # Loop through all blocks and copy the ones that were not copied yet and also old enough.
+    LOGGER.info("Exporting blocks.")
     for block in prometheus_blocks:
         if block.ulid in exported_blocks:
-            print(f"Skip: {str(block.ulid)} is already exported.")
+            LOGGER.info(f"Skip: {str(block.ulid)} is already exported.")
             continue
 
         if str(block.ulid) in status and status[str(block.ulid)].get('successful', False):
-            print(f'Skip: {str(block.ulid)} was exported successfully in the past.')
+            LOGGER.info(f'Skip: {str(block.ulid)} was exported successfully in the past.')
             continue
 
         if block.ulid.datetime >= minimum_creation_time:
-            print(f'Skip: {str(block.ulid)} is too young.')
+            LOGGER.info(f'Skip: {str(block.ulid)} is too young.')
             continue
 
-        print(f"Moving: {str(block.ulid)}")
+        LOGGER.info(f"Copying: {str(block.ulid)}")
         block_copier.copy_block(block)
-        break  # TODO: Remove this
 
     # Write status file to disk
+    LOGGER.info("Writing status file to disk.")
     with open(status_file_path, "w") as f:
         json.dump(status, f, indent=4)
 
@@ -121,6 +127,15 @@ def run():
     # export_data_dir = environ.get("TARGET_DATA_DIR", "/export")
     export_data_dir = Path(environ.get("TARGET_DATA_DIR", "/mnt/m/Temp/monitoring-prometheus-data/export"))
     minimum_age_hours = int(environ.get("MINIMUM_AGE_HOURS", "24"))
+
+    logging.basicConfig(
+        format="%(asctime)s.%(msecs)d|%(levelname)s|%(name)s|%(funcName)s|%(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=logging.DEBUG,
+        handlers=[logging.FileHandler(export_data_dir.joinpath(".log"), encoding="utf-8"), logging.StreamHandler()],
+    )
+    logging.Formatter.converter = time.gmtime
+
     main(prometheus_data_dir, export_data_dir, minimum_age_hours)
 
 

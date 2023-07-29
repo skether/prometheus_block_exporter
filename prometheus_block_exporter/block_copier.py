@@ -1,6 +1,10 @@
 import hashlib
+import logging
 import shutil
 from pathlib import Path
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def get_sha256_digest(path):
@@ -47,5 +51,4 @@ class BlockCopier():
             if str(block.ulid) in self.hash_dictionary:
                 del self.hash_dictionary[str(block.ulid)]
             shutil.rmtree(self.target_directory.joinpath(block.path.name), ignore_errors=True)
-            print(e)
-            raise e
+            LOGGER.error(e)
