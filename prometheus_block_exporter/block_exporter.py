@@ -122,11 +122,12 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
 
 def run():
     from os import environ
-    # prometheus_data_dir = environ.get("PROMETHEUS_DATA_DIR", "/prometheus")
-    prometheus_data_dir = Path(environ.get("PROMETHEUS_DATA_DIR", "/mnt/m/Temp/monitoring-prometheus-data/monitoring-prometheus-data-pvc-79249e99-0b44-4021-9dd4-6f2b3ad73874"))
-    # export_data_dir = environ.get("TARGET_DATA_DIR", "/export")
-    export_data_dir = Path(environ.get("TARGET_DATA_DIR", "/mnt/m/Temp/monitoring-prometheus-data/export"))
+    prometheus_data_dir = Path(environ.get("PROMETHEUS_DATA_DIR", "/prometheus"))
+    export_data_dir = Path(environ.get("TARGET_DATA_DIR", "/export"))
     minimum_age_hours = int(environ.get("MINIMUM_AGE_HOURS", "24"))
+
+    # Make sure export dir exists
+    export_data_dir.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         format="%(asctime)s.%(msecs)d|%(levelname)s|%(name)s|%(funcName)s|%(message)s",
