@@ -44,8 +44,8 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     export_data_dir.mkdir(parents=True, exist_ok=True)
 
     # Scan the data directories for Blocks
-    prometheus_blocks = list(iterate_blocks(prometheus_data_dir))
-    exported_blocks = list(iterate_blocks(export_data_dir))
+    prometheus_blocks = sorted(list(iterate_blocks(prometheus_data_dir)), key=lambda block: str(block.ulid))
+    exported_blocks = sorted(list(iterate_blocks(export_data_dir)), key=lambda block: str(block.ulid))
 
     minimum_creation_time = datetime.now(tz=timezone.utc) - timedelta(hours=minimum_age_hours)
 
@@ -91,7 +91,7 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
             else:
                 LOGGER.info(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. It is no longer available, won't try to reexport.")
     if refresh_exported_blocks:
-        exported_blocks = list(iterate_blocks(export_data_dir))
+        exported_blocks = sorted(list(iterate_blocks(export_data_dir)), key=lambda block: str(block.ulid))
 
     block_copier = BlockCopier(target_directory=export_data_dir)
     block_copier.hash_dictionary = status
