@@ -3,7 +3,6 @@ import logging
 import shutil
 from pathlib import Path
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -20,7 +19,7 @@ class MismatchingHashError(Exception):
     """This is raised when a copied file's hashed don't match"""
 
 
-class BlockCopier():
+class BlockCopier:
     def __init__(self, target_directory):
         self.target_directory = target_directory if isinstance(target_directory, Path) else Path(target_directory)
         self.hash_dictionary = {}
@@ -35,7 +34,7 @@ class BlockCopier():
 
         relative_path = (Path(dst)).relative_to(self.target_directory)
         ((self.hash_dictionary[block_ulid])['files'])[str(relative_path)] = dst_hash
-        
+
         return return_value
 
     def copy_block(self, block):

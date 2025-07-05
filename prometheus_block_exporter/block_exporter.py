@@ -3,18 +3,17 @@ import logging
 import re
 import shutil
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from ulid import ULID
 
 from .block_copier import BlockCopier
 
-
 LOGGER = logging.getLogger(__name__)
 
 
-class Block():
+class Block:
     def __init__(self, path):
         self.path = path
         self.ulid = ULID.from_str(path.name)
@@ -44,10 +43,10 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     export_data_dir.mkdir(parents=True, exist_ok=True)
 
     # Scan the data directories for Blocks
-    prometheus_blocks = sorted(list(iterate_blocks(prometheus_data_dir)), key=lambda block: str(block.ulid))
-    exported_blocks = sorted(list(iterate_blocks(export_data_dir)), key=lambda block: str(block.ulid))
+    prometheus_blocks = sorted(iterate_blocks(prometheus_data_dir), key=lambda block: str(block.ulid))
+    exported_blocks = sorted(iterate_blocks(export_data_dir), key=lambda block: str(block.ulid))
 
-    minimum_creation_time = datetime.now(tz=timezone.utc) - timedelta(hours=minimum_age_hours)
+    minimum_creation_time = datetime.now(tz=UTC) - timedelta(hours=minimum_age_hours)
 
     # Load the status file if present
     status_file_path = export_data_dir.joinpath("block.exporter.json")
@@ -91,7 +90,7 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
             else:
                 LOGGER.info(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. It is no longer available, won't try to reexport.")
     if refresh_exported_blocks:
-        exported_blocks = sorted(list(iterate_blocks(export_data_dir)), key=lambda block: str(block.ulid))
+        exported_blocks = sorted(iterate_blocks(export_data_dir), key=lambda block: str(block.ulid))
 
     block_copier = BlockCopier(target_directory=export_data_dir)
     block_copier.hash_dictionary = status
