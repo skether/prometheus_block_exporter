@@ -1,32 +1,55 @@
-[tool.poetry]
+[project]
 name = "prometheus_block_exporter"
 version = "1.0.1"
 description = "A tool for exporting Prometheus TSDB Blocks."
-authors = ["Lajos Harangi <lajos@harangi.dev>"]
-license = "MIT License"
+authors = [
+    {name = "Lajos Harangi", email = "lajos@harangi.dev"},
+]
+license = {text = "MIT License"}
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-ulid~=3.0.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.11"
-python-ulid = "^1.1.0"
+[project.scripts]
+prometheus-block-exporter = "prometheus_block_exporter.block_exporter:run"
 
-[tool.poetry.dev-dependencies]
-black = "^22.10.0"
-flake8-import-order = "^0.18.1"
-pep8-naming = "^0.13.2"
-ipython = "^8.6.0"
-flake8 = "^4.0.1"
-flakeheaven = "^3.2.1"
+[project.urls]
+"Homepage" = "https://github.com/skether/prometheus_block_exporter"
+"Repository" = "https://github.com/skether/prometheus_block_exporter"
+
+[tool.poetry]
+packages = [{include = "prometheus_block_exporter"}]
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+ipython = "^9.4.0"
+ruff = "^0.12.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.black]
+[tool.ruff]
 line-length = 300
+indent-width = 4
+exclude = [".venv", "__pycache__", "docs"]
 
-[tool.flakeheaven]
-max_line_length = 300
-exclude = ["__pycache__", ".venv", "docs"]
-
-[tool.flakeheaven.plugins]
-"*" = ["+*"]
+[tool.ruff.lint]
+preview = true
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # Pyflakes
+    "I",  # isort
+    "N",  # pep8-naming
+    "B",  # flake8-bugbear
+    "A",  # flake8-builtins
+    "C4", # flake8-comprehensions
+    "SIM",# flake8-simplify
+    "UP", # pyupgrade
+]
+ignore = ["UP015"]
