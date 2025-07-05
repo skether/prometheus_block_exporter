@@ -28,6 +28,7 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 ipython = "^9.4.0"
 ruff = "^0.12.2"
+pyright = "^1.1.402"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -51,5 +52,12 @@ select = [
     "C4", # flake8-comprehensions
     "SIM",# flake8-simplify
     "UP", # pyupgrade
+    "ANN",
 ]
 ignore = ["UP015"]
+
+[tool.pyright]
+include = ["prometheus_block_exporter"]
+exclude = ["**/__pycache__"]
+typeCheckingMode = "basic"
+venv_path = ".venv"
