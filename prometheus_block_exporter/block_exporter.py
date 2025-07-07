@@ -3,8 +3,10 @@ import logging
 import re
 import shutil
 import time
+from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from ulid import ULID
 
@@ -14,11 +16,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Block:
-    def __init__(self, path):
+    def __init__(self, path: Path) -> None:
         self.path = path
         self.ulid = ULID.from_str(path.name)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:  # noqa: ANN401
         if isinstance(other, Block):
             return self.ulid == other.ulid and self.path == other.path
         elif isinstance(other, ULID):
@@ -27,30 +29,30 @@ class Block:
             return str(self.ulid) == other
         return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'Block(ulid: {repr(self.ulid)}, path: {repr(self.path)})'
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'Block({str(self.ulid)} @ {str(self.path)})'
 
 
-def iterate_blocks(path):
+def iterate_blocks(path: Path) -> Generator[Block, None, None]:
     ulid_filter = re.compile(r'^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{26}$')
     return (Block(block) for block in path.iterdir() if block.is_dir() and ulid_filter.match(block.name))
 
 
-def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
+def main(prometheus_data_dir: Path, export_data_dir: Path, minimum_age_hours: int) -> None:
     export_data_dir.mkdir(parents=True, exist_ok=True)
 
     # Scan the data directories for Blocks
-    prometheus_blocks = sorted(iterate_blocks(prometheus_data_dir), key=lambda block: str(block.ulid))
-    exported_blocks = sorted(iterate_blocks(export_data_dir), key=lambda block: str(block.ulid))
+    prometheus_blocks: list[Block] = sorted(iterate_blocks(prometheus_data_dir), key=lambda block: str(block.ulid))
+    exported_blocks: list[Block] = sorted(iterate_blocks(export_data_dir), key=lambda block: str(block.ulid))
 
     minimum_creation_time = datetime.now(tz=UTC) - timedelta(hours=minimum_age_hours)
 
     # Load the status file if present
     status_file_path = export_data_dir.joinpath("block.exporter.json")
-    status = {}
+    status: dict[str, dict[str, Any]] = {}
     if status_file_path.exists():
         LOGGER.info("Loading status file!")
         with open(status_file_path, 'r') as f:
@@ -60,13 +62,13 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     LOGGER.info("Running consistency checks.")
     refresh_exported_blocks = False
     for key, value in list(status.items()):
-        if key in exported_blocks:
+        if key in [str(b.ulid) for b in exported_blocks]:
             if value.get('successful', False):
                 # Block was successfully exported and is still availiable.
                 pass
             else:
                 # Block was partially exported in the past. If possible will try to reexport, leave it otherwise.
-                if key in prometheus_blocks:
+                if key in [str(b.ulid) for b in prometheus_blocks]:
                     shutil.rmtree(export_data_dir.joinpath(key), ignore_errors=True)
                     refresh_exported_blocks = True
                     LOGGER.warning(f"Block({key}) was partially exported. Removing to force retry!")
@@ -83,7 +85,7 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     for block in exported_blocks:
         if str(block.ulid) not in status:
             # Block was exported, but there's no record of it in the status file. Reexport if possible.
-            if block.ulid in prometheus_blocks:
+            if block.ulid in [b.ulid for b in prometheus_blocks]:
                 shutil.rmtree(export_data_dir.joinpath(str(block.ulid)), ignore_errors=True)
                 refresh_exported_blocks = True
                 LOGGER.info(f"Block({str(block.ulid)}) was exported in the past, but there's no record of it. Will try to reexport.")
@@ -98,7 +100,7 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
     # Loop through all blocks and copy the ones that were not copied yet and also old enough.
     LOGGER.info("Exporting blocks.")
     for block in prometheus_blocks:
-        if block.ulid in exported_blocks:
+        if block.ulid in [b.ulid for b in exported_blocks]:
             LOGGER.info(f"Skip: {str(block.ulid)} is already exported.")
             continue
 
@@ -119,7 +121,7 @@ def main(prometheus_data_dir, export_data_dir, minimum_age_hours):
         json.dump(status, f, indent=4)
 
 
-def run():
+def run() -> None:
     from os import environ
     prometheus_data_dir = Path(environ.get("PROMETHEUS_DATA_DIR", "/prometheus"))
     export_data_dir = Path(environ.get("TARGET_DATA_DIR", "/export"))

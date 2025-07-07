@@ -2,11 +2,14 @@ import hashlib
 import logging
 import shutil
 from pathlib import Path
+from typing import Any
+
+from .block_exporter import Block
 
 LOGGER = logging.getLogger(__name__)
 
 
-def get_sha256_digest(path):
+def get_sha256_digest(path: Path) -> str:
     sha256 = hashlib.sha256()
     mv = memoryview(bytearray(128 * 1024))
     with open(path, 'rb', buffering=0) as f:
@@ -20,14 +23,14 @@ class MismatchingHashError(Exception):
 
 
 class BlockCopier:
-    def __init__(self, target_directory):
+    def __init__(self, target_directory: str | Path) -> None:
         self.target_directory = target_directory if isinstance(target_directory, Path) else Path(target_directory)
-        self.hash_dictionary = {}
+        self.hash_dictionary: dict[str, dict[str, Any]] = {}
 
-    def _copy2_with_hashing(self, src, dst, *, follow_symlinks=True, block_ulid):
-        src_hash = get_sha256_digest(src)
+    def _copy2_with_hashing(self, src: str | Path, dst: str | Path, *, follow_symlinks: bool = True, block_ulid: str) -> str | Path:
+        src_hash = get_sha256_digest(Path(src))
         return_value = shutil.copy2(src=src, dst=dst, follow_symlinks=follow_symlinks)
-        dst_hash = get_sha256_digest(dst)
+        dst_hash = get_sha256_digest(Path(dst))
 
         if src_hash != dst_hash:
             raise MismatchingHashError(f"Unable to copy {src}. Mismatching hashes!")
@@ -37,7 +40,7 @@ class BlockCopier:
 
         return return_value
 
-    def copy_block(self, block):
+    def copy_block(self, block: Block) -> None:
         if str(block.ulid) in self.hash_dictionary:
             raise ValueError(f"Block {str(block.ulid)} was already copied!")
         self.hash_dictionary[str(block.ulid)] = {'successful': False, 'files': {}}
